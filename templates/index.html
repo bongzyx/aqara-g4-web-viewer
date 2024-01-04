@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Aqara G4 Footage Viewer</title>
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"
+    ></script>
+    <link
+      href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='styles.css') }}"
+    />
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"
+    ></script>
+  </head>
+  <body>
+    <div id="video-container">
+      <video id="videoPlayer" controls width="80%">
+        <source src="" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+    </div>
+
+    <div id="timeline"></div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+          var container = document.getElementById('timeline');
+          var videoPlayer = document.getElementById('videoPlayer');
+
+          var items = [
+              {% for video in video_metadata %}
+                {
+                  id: {{ loop.index }},
+                  content: 'Video {{ loop.index }}',
+                  start: new Date('{{ video.start_time }}'),
+                  end: new Date('{{ video.end_time }}'),
+                  video_path: '/play/{{ video.video_path }}'
+                },
+              {% endfor %}
+          ];
+
+          var options = {
+            stack: false,
+            showCurrentTime: true,
+        };
+
+        var timeline = new vis.Timeline(container, items, options);
+
+        // Add an indicator for the current time selected
+        var currentTime = new Date();
+        timeline.setCurrentTime(currentTime);
+
+
+        timeline.on('click', function (properties) {
+          var clickedTimestamp = properties.time || properties.center;
+          var nearestItem = findNearestItem(clickedTimestamp);
+
+          if (nearestItem) {
+              var videoUrl = nearestItem.video_path;
+              console.log(nearestItem.start)
+              console.log(timeline.getCurrentTime())
+              timeline.setCurrentTime(new Date(nearestItem.start));
+              var videoUrl = nearestItem.video_path;
+              playVideo(videoUrl)
+
+              var resultArray = generateItemsArray(nearestItem.id);
+              timeline.focus(resultArray,{ zoom: true });
+          }
+      });
+
+        function generateItemsArray(centerId) {
+          var resultArray = [];
+
+          for (var i = centerId - 10; i <= centerId + 10; i++) {
+            resultArray.push(i);
+          }
+          return resultArray
+        }
+
+        function playVideo(videoUrl) {
+          console.log("Selected Video URL:", videoUrl);
+          videoPlayer.src = videoUrl;
+          videoPlayer.load();
+          videoPlayer.play();
+        }
+
+        function findNearestItem(clickedTimestamp) {
+          var nearestItem = null;
+          var minTimeDifference = Infinity;
+
+          for (var i = 0; i < items.length; i++) {
+              var item = items[i];
+              var startTime = Date.parse(item.start);
+              var endTime = Date.parse(item.end);
+              var timeDifference = Math.min(Math.abs(startTime - clickedTimestamp), Math.abs(endTime - clickedTimestamp));
+
+              if (timeDifference < minTimeDifference) {
+                  minTimeDifference = timeDifference;
+                  nearestItem = item;
+              }
+          }
+
+          return nearestItem;
+        }
+
+
+      });
+    </script>
+  </body>
+</html>
